@@ -4,9 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Collections.Generic;
 using System.Drawing;
-//using System.Windows.Input;
 
 
 namespace sudoku
@@ -19,16 +17,10 @@ namespace sudoku
         [STAThread]
         static void Main()
         {
-            // Application.SetHighDpiMode(HighDpiMode.SystemAware);
-            // Application.EnableVisualStyles();
-            // Application.SetCompatibleTextRenderingDefault(false);
-            // Application.Run(new Form1());
             Application.Run(new MyWindow());
         }
     }
     class Board{
-
-        public int[,] squares = new int[9,9];
         public int[,] rows = new int[9,9];
 
     }
@@ -44,34 +36,47 @@ namespace sudoku
         }
         protected override void OnMouseDown(MouseEventArgs args){
             currClicked = args.Location;
-        }
-        protected override void OnKeyDown(KeyEventArgs e){
-            if ((e.KeyCode > Keys.D0 && e.KeyCode <= Keys.D9) || (e.KeyCode > Keys.NumPad0 && e.KeyCode < Keys.NumPad9)){
-                board.rows[currClicked.X / 50, currClicked.Y /50] = (System.Convert.ToInt32(e.KeyCode.ToString().ToCharArray()[1]) - 48);
-                //board.squares[(currClicked.X/3)+((currClicked.Y/3)*3), (currClicked.X%3)+((currClicked.Y%3)*3)] = (System.Convert.ToInt32(e.KeyCode.ToString().ToCharArray()[1]) - 48);
-            }
-            if(e.KeyCode == Keys.Back || e.KeyCode == Keys.Delete){
-                board.rows[currClicked.X / 50, currClicked.Y /50] = 0;
-                //board.squares[(currClicked.X/3)+((currClicked.Y/3)*3), (currClicked.X%3)+((currClicked.Y%3)*3)] = 0;
-            }
             Invalidate();
         }
+        protected override void OnKeyDown(KeyEventArgs e){
+            if ((e.KeyCode > Keys.D0 && e.KeyCode <= Keys.D9) || (e.KeyCode > Keys.NumPad0 && e.KeyCode < Keys.NumPad9))
+                board.rows[currClicked.X / 50, currClicked.Y /50] = ((int)(e.KeyCode.ToString()[1]) - '0');
+            if(e.KeyCode == Keys.Back || e.KeyCode == Keys.Delete)
+                board.rows[currClicked.X / 50, currClicked.Y /50] = 0;
+            Invalidate();
+        }
+        //valid makes sure not mistake
         public bool valid(int input, int x, int y){
             for(int i = 0; i < 9; i++){
+                //checks if double number in column
                 if(y != i && (board.rows[x, i] == input || levels.levelList[levels.currLevel][x,i] == input))
                     return false;
+                //checks if double number in row
                 if(x != i && (board.rows[i, y] == input || levels.levelList[levels.currLevel][i,y] == input))
                     return false;
-                if(/*(idk figure this out later) &&*/(board.squares[(x/3)+((y/3)*3), i] == input || levels.levelList[levels.currLevel][x-(x%3)+(i%3), (y-(y%3)+(i/3))] == input))
+                //checks if same number in same square(3x3 block) of board-generated numbers
+                if((levels.levelList[levels.currLevel][x-(x%3)+(i%3), (y-(y%3)+(i/3))] == input))
                     return false;
+            }
+            //checks if same number in same square(3x3 block) of inputed numbers
+            for(int i = 0; i < 3; i++){
+                for(int j = 0; j<3; j++){
+                    if(i == x%3 && j == y%3)
+                        continue;
+                    if(board.rows[(x/3)*3 + i, (y/3)*3 + j] == input)
+                        return false;
+                }
             }
             return true;
         }
         public bool gameFinished(){
-            //need to include if numbers are red
             for(int i = 0; i < 9; i++){
                 for(int j = 0; j < 9; j++){
                     if(board.rows[i,j] == 0 && levels.levelList[levels.currLevel][i,j] == 0)
+                        return false;
+                    if(board.rows[i,j] != 0 && !valid(board.rows[i,j], i, j))
+                        return false;
+                    if(levels.levelList[levels.currLevel][i,j] != 0 && !valid(levels.levelList[levels.currLevel][i,j], i, j))
                         return false;
                 }
             }
@@ -80,7 +85,8 @@ namespace sudoku
         protected override void OnPaint(PaintEventArgs args) {
             Graphics g = args.Graphics;
             Pen pen;
-            for(int i = 0; i <= 9; i++){ //adding lines on board
+            //adding lines on board
+            for(int i = 0; i <= 9; i++){
                 if(i % 3 == 0)
                     pen = new Pen(Color.Black, 5);
                 else
@@ -89,21 +95,25 @@ namespace sudoku
                 g.DrawLine(pen, new Point(0, 50*i), new Point(450, 50*i));
             }
             //highlight currclicked box
+            g.FillRectangle(new SolidBrush(Color.FromArgb(60, 0, 0, 255)), new Rectangle((currClicked.X / 50)*50 ,(currClicked.Y / 50)*50, 50, 50));
             if(gameFinished()){
                 levels.currLevel++;
                 board = new Board();
             }
+            //adds numbers
             for(int i = 0; i < 9; i++){
                 for(int j = 0; j < 9; j++){
                     if(levels.levelList[levels.currLevel][i,j] != 0){
-                        g.DrawString(levels.levelList[levels.currLevel][i,j].ToString(), new Font("Times New Roman", 35, FontStyle.Bold), Brushes.Black, new PointF(i*50 + 5, j*50 -1));
+                        g.DrawString(levels.levelList[levels.currLevel][i,j].ToString(), new Font("Times New Roman", 35, FontStyle.Bold), Brushes.Black, new PointF(i*50 + 6, j*50 -1));
 
                     }
-                    if(board.rows[i,j] != 0 && valid(board.rows[i,j], i, j)){//valid makes sure not mistake
-                        g.DrawString(board.rows[i,j].ToString(), new Font("Times New Roman", 35), Brushes.Black, new PointF(i*50 + 5, j*50 -1));
-                    }
-                    if(!valid(board.rows[i,j], i, j) && board.rows[i,j] != 0 ){
-                        g.DrawString(board.rows[i,j].ToString(), new Font("Times New Roman", 35), Brushes.Red, new PointF(i*50 + 5, j*50 -1));
+                    if(board.rows[i,j] != 0){
+                        Brush b;
+                        if(valid(board.rows[i,j], i, j))
+                            b = Brushes.Black;
+                        else
+                            b = Brushes.Red;
+                        g.DrawString(board.rows[i,j].ToString(), new Font("Times New Roman", 35), b, new PointF(i*50 + 6, j*50 -1));
                     }
                 }
             }
